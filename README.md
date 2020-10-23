@@ -3,3 +3,6 @@
 # Generative Model Regularization for Feature Visualization by Optimisation
 
 An implementation of the ideas introduced in "Synthesizing the preferred inputs for neurons in neural networks via deep generator networks" https://arxiv.org/pdf/1605.09304.pdf
+
+
+The first file you should open is `notebook.ipynb`, it should be viewable through GitHub.
