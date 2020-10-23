@@ -16,7 +16,7 @@ def classifier(image_shape, num_classes):
         activation='relu',
         padding='same',
     )(outputs)
-    outputs = AveragePooling2D(pool_size=[2, 2])(outputs)
+    outputs = MaxPooling2D(pool_size=[2, 2])(outputs)
 
     outputs = Conv2D(
         filters=8,
@@ -25,7 +25,7 @@ def classifier(image_shape, num_classes):
         activation='relu',
         padding='same',
     )(outputs)
-    outputs = AveragePooling2D(pool_size=[2, 2])(outputs)
+    outputs = MaxPooling2D(pool_size=[2, 2])(outputs)
 
     outputs = Conv2D(
         filters=16,
@@ -34,7 +34,7 @@ def classifier(image_shape, num_classes):
         activation='relu',
         padding='same',
     )(outputs)
-    outputs = AveragePooling2D(pool_size=[2, 2])(outputs)
+    outputs = MaxPooling2D(pool_size=[2, 2])(outputs)
 
     outputs = Conv2D(
         filters=32,
@@ -43,7 +43,7 @@ def classifier(image_shape, num_classes):
         activation='relu',
         padding='same',
     )(outputs)
-    outputs = AveragePooling2D(pool_size=[2, 2])(outputs)
+    outputs = MaxPooling2D(pool_size=[2, 2])(outputs)
 
     outputs = Conv2D(
         filters=64,

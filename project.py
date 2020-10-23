@@ -187,13 +187,12 @@ def viz_by_opt(model, options=[]):
         yield img_paramaterization
 
 
-def viz_loop(img_paramaterization, model, transform, steps=1025):
+def viz_loop(img_paramaterization, model, transform, steps=2049):
     
     img_paramaterization = tf.Variable(img_paramaterization)
     
     step_size = 0.01
     
-    @tf.function
     def viz_step(x):
         with tf.GradientTape() as tape:
             tape.watch(x)
@@ -217,18 +216,17 @@ def viz_loop2(img_paramaterization, decoder, part_classifier, steps=1025):
     
     x = tf.Variable(img_paramaterization)
 
-    step_size = 0.1
+    step_size = 100
     
     optimizer = tf.keras.optimizers.Adam(amsgrad=True)
     
-    @tf.function
     def viz_step(x):
         with tf.GradientTape() as tape:
             tape.watch(x)
             activations = part_classifier(decoder(x))
             loss = tf.reduce_mean(activations)
         gradient = tape.gradient(loss, x)
-        gradient = gradient / (tf.norm(gradient) + 1e-12)
+        gradient = gradient / (tf.norm(gradient) + 1e-18)
         return x + gradient * step_size
     
     for i in tf.range(steps):
