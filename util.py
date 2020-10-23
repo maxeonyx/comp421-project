@@ -13,6 +13,7 @@ def display_uint8_image(image, color=False):
 
 def display_float32_image(image, color=False):
     image = tf.squeeze(image)
+    image = tf.clip_by_value(image, 0, 1)
     image *= 255
     display_uint8_image(tf.cast(image, tf.uint8), color)
 
@@ -74,19 +75,14 @@ def display_latent_dims(decoder, latent_dims, range=[0, 1], n_vecs=3, color=Fals
     display_many_images(generated, color)
 
 # display a selection of images and their reconstructions
-def display_model_output(data, model, color=False):
-    images = data["x_test"]
-    image_width = images.shape[-2]
-    image_height = images.shape[-1]
+def display_model_output(images, model, color=False):
+    image_size = images.shape[1]
     
     generated = model(images)
-    
-    # random selection of images from each of the 4 classes
-    n_per_class = data["n_test"] // 4
-    indices = np.concatenate([
-        np.random.randint(i * n_per_class, (i+1) * n_per_class, 60) for i in range(4)
-    ])
-    input_images = tf.reshape(tf.gather(images, indices), [12, 20, image_width, image_height])
-    generated_images = tf.reshape(tf.gather(generated, indices), [12, 20, image_width, image_height])
-    display_many_images(input_images, color)
-    display_many_images(generated_images, color)
+#     indices = np.random.permutation(data["n_test"])[:120]
+#     input_images = tf.reshape(tf.gather(images, indices), [-1, 15, image_size, image_size, 3])
+    images = tf.reshape(images, [-1, 15, image_size, image_size, 3])
+#     generated_images = tf.reshape(tf.gather(generated, indices), [-1, 20, image_size, image_size, 3])
+    generated = tf.reshape(generated, [-1, 15, image_size, image_size, 3])
+    display_many_images(images, color)
+    display_many_images(generated, color)

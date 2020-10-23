@@ -23,6 +23,15 @@ colors = [
     "red",
     "rainbow",
 ]
+dont_include = [
+    ("line", "filled", "green"),
+    ("square", "filled", "green"),
+    ("circle", "filled", "green"),
+    
+    ("line", "filled", "green"),
+    ("square", "filled", "green"),
+    ("circle", "filled", "green"),
+]
 
 def all_classes():
     return itertools.product(shape_types, line_types, colors)
@@ -35,8 +44,8 @@ def rainbow(shape, center_x, center_y, angle):
     magnitudes = np.linalg.norm(coords, axis=-1)
     
     h = angles / (2*np.pi) + 0.5
-    s = np.ones(h.shape)
-    v = np.ones(h.shape)
+    s = np.clip(magnitudes*2, 0, 1)
+    v = np.ones_like(angles)
     
     hsv = np.stack([h, s, v], axis=-1)
     hsv = (hsv * 255).astype(np.uint8)
@@ -47,6 +56,14 @@ def rainbow(shape, center_x, center_y, angle):
     rgb = np.asarray(i).astype(np.float) / 255.0
 
     return rgb
+
+def new_line(d, center_x, center_y, radius, angle, fill, line_width):
+    point1x = center_x + radius * np.cos(angle)
+    point1y = center_y + radius * np.sin(angle)
+    point2x = center_x + radius * np.cos(angle+np.pi)
+    point2y = center_y + radius * np.sin(angle+np.pi)
+    
+    d.line([(point1x, point1y), (point2x,point2y)], fill=fill, width=int(line_width))
 
 def square(d, center_x, center_y, radius, angle, fill):
     point1x = center_x + radius * np.cos(angle)
@@ -74,10 +91,16 @@ def circle(d, center_x, center_y, radius, angle, fill):
     d.ellipse([(center_x - radius, center_y - radius), (center_x + radius, center_y + radius)], fill=fill)
 
 # assumes 3 channels
-def shapes(images, params, min_radius, max_radius, line_width):
-    n_images = images.shape[0]
-    image_width = images.shape[1]
-    image_height = images.shape[2]
+def shapes(params, draw_size, resize_to, min_radius, max_radius, line_width):
+    n_images = len(params)
+    image_width = draw_size
+    image_height = draw_size
+    
+    
+#     images = np.zeros((len(params), resize_to, resize_to, 3), dtype=np.float)
+    images = np.random.random([len(params), resize_to, resize_to, 3])
+#     background = np.random.random([len(params), resize_to, resize_to, 3])
+    background = np.zeros([len(params), resize_to, resize_to, 3])
 
     white = (255, 255, 255)
     red = (255, 0, 0)
@@ -96,33 +119,41 @@ def shapes(images, params, min_radius, max_radius, line_width):
         center_y = np.random.uniform(0+radius+2, image_height-radius-2)
         angle = np.random.uniform(-np.pi, np.pi)
         
-        img = Image.new("RGB", (image_width, image_height))
+#         img = Image.fromarray(noiseimages[i], "RGB")
+        img = Image.new("RGB", (draw_size, draw_size))
         d = ImageDraw.Draw(img)
 
         fill = white
-        if color == "red":
-            fill = red
-        elif color == "green":
-            fill = green
-        elif color == "blue":
-            fill = blue
+        
+        if shape == "line":
+            if line_type == "single":
+                new_line(d, center_x, center_y, radius, angle, fill, line_width)
+            elif line_type == "filled":
+                new_line(d, center_x, center_y, radius, angle, fill, line_width * 4)
+            elif line_type == "double":
+                center_offset_x = line_width * np.cos(angle + np.pi/2)
+                center_offset_y = line_width * np.sin(angle + np.pi/2)
+                new_line(d, center_x + center_offset_x, center_y + center_offset_y, radius, angle, fill, line_width)
+                new_line(d, center_x - center_offset_x, center_y - center_offset_y, radius, angle, fill, line_width)
+                pass
         
         if shape == "tri":
-            print("tri")
+            tri_line_width = line_width * 2
             tri(d, center_x, center_y, radius, angle, fill)
             if line_type != "filled":
-                tri(d, center_x, center_y, radius-line_width, angle, black)
+                tri(d, center_x, center_y, radius-tri_line_width, angle, black)
                 if line_type == "double":
-                    tri(d, center_x, center_y, radius-line_width*2-1, angle, fill)
-                    tri(d, center_x, center_y, radius-line_width*3-1, angle, black)
+                    tri(d, center_x, center_y, radius-tri_line_width*2-1, angle, fill)
+                    tri(d, center_x, center_y, radius-tri_line_width*3-1, angle, black)
         
         elif shape == "square":
+            sq_line_width = line_width * 1.41
             square(d, center_x, center_y, radius, angle, fill)
             if line_type != "filled":
-                square(d, center_x, center_y, radius-line_width, angle, black)
+                square(d, center_x, center_y, radius-sq_line_width, angle, black)
                 if line_type == "double":
-                    square(d, center_x, center_y, radius-line_width*2-1, angle, fill)
-                    square(d, center_x, center_y, radius-line_width*3-1, angle, black)
+                    square(d, center_x, center_y, radius-sq_line_width*2-1, angle, fill)
+                    square(d, center_x, center_y, radius-sq_line_width*3-1, angle, black)
         
         elif shape == "circle":
             circle(d, center_x, center_y, radius, angle, fill)
@@ -131,24 +162,31 @@ def shapes(images, params, min_radius, max_radius, line_width):
                 if line_type == "double":
                     circle(d, center_x, center_y, radius-line_width*2-1, angle, fill)
                     circle(d, center_x, center_y, radius-line_width*3-1, angle, black)
-
-        display(img)
-
-        imgdata = np.asarray(img)
+        
+        img = img.resize((resize_to, resize_to))
+        mask = np.asarray(img).astype(np.float) / 255.0
         
         if color == "rainbow":
-            x = imgdata.astype(np.float) / 255.0
-            x *= rbow
-            imgdata = (x * 255).astype(np.uint8)
+            images[i] = rbow * mask + background[i] * (1 - mask)
+        elif color == "red":
+            images[i] = np.array([1, 0, 0]) * mask + background[i] * (1 - mask)
+        elif color == "green":
+            images[i] = np.array([0, 1, 0]) * mask + background[i] * (1 - mask)
+        elif color == "blue":
+            images[i] = np.array([0, 0, 1]) * mask + background[i] * (1 - mask)
+        elif color == "white":
+            images[i] = mask + background[i] * (1 - mask)
         
-        rgbx = imgdata.astype(np.float) / 255.0
-        rgb = rgbx[:, :, :3]
-        images[i] = rgb
+    return images
             
 def example_shapes():
     par = list(all_classes())
-    images = np.zeros((len(par), 100, 100, 3), dtype=np.float)
-    shapes(images, par, min_radius=30, max_radius=50, line_width=3)
+    draw_size = 200
+    resize_to = 48
+    line_width = draw_size / 25
+    min_radius = line_width * 6
+    max_radius = min_radius * 1.5
+    images = shapes(par, draw_size, resize_to, min_radius=min_radius, max_radius=max_radius, line_width=line_width)
     return images
 
 def line(images, min_length=48, max_length=48):
@@ -276,20 +314,24 @@ def triangle(images, min_size=48, max_size=48):
         d.line([tuple(starts[i]), tuple(point2[i])], fill=255, width=6)
 
 # make a convenient structure for our data
-def create_dataset_obj(x_all, y_all, z_all):
+def create_dataset_obj(x_all, y_all, z_all, n_classes):
     x_all = tf.convert_to_tensor(x_all)
     y_all = tf.convert_to_tensor(y_all)
     z_all = tf.convert_to_tensor(z_all)
-    x_all = tf.expand_dims(x_all, -1)
 
-    inds = np.indices([len(x_all)])
+    inds = np.random.permutation(len(x_all))
+    n_all = len(x_all)
+    n_test = len(x_all) // 10
+    n_val = len(x_all) // 10
+    n_train = n_all - n_test - n_val
     # 80% train : 10% val : 10% test split
-    train_indices = inds[inds % 10 >= 2]
-    val_indices = inds[inds % 10 == 0]
-    test_indices =  inds[inds % 10 == 1]
+    train_indices = inds[:n_train]
+    val_indices = inds[n_train:n_train+n_val]
+    test_indices =  inds[n_train+n_val:n_train+n_val+n_test]
 
     return {
         "image_size": x_all.shape[1],
+        "n_classes": n_classes,
 
         "n_all": len(x_all),
         "x_all": x_all,
@@ -312,33 +354,31 @@ def create_dataset_obj(x_all, y_all, z_all):
     }
 
 
-def make_image_dataset(n_x_data=10000, n_z_data=2000, image_size=24, latent_dims=6, pixel_dtype=np.uint8):
+def make_image_dataset(n_x_data, n_z_data=2000, image_size=24, latent_dims=6, pixel_dtype=np.uint8):
 
-    fns = [
-           line,
-           rect,
-           circleold,
-           triangle,
-    ]
-
-    n_classes = len(fns)
+    
+    n_classes = len(list(all_classes()))
     n_per_class = n_x_data // n_classes
-    images = np.zeros([n_x_data, image_size*3, image_size*3], dtype=pixel_dtype)
-
-    for i, fn in enumerate(fns):
-        start = i*n_per_class
-        end = (i+1)*n_per_class
-        fn(images[start:end])
-
+    
+    params = [par for par in all_classes()] * n_per_class
+    
     class_labels = np.identity(n_classes)
-    classes = class_labels[np.concatenate([np.repeat(i, n_per_class) for i in range(n_classes)])]
+    classes = [class_labels[i] for i, par in enumerate(all_classes())] * n_per_class
+    
+#     class1_labels = np.identity(len(shape_types))
+#     class2_labels = np.identity(len(line_types))
+#     class3_labels = np.identity(len(colors))
+#     tclasses = [
+#         (class1_labels[shape_types.index(shape_type)], class2_labels[line_types.index(line_type)], class3_labels[colors.index(color)]) for shape_type, line_type, color in all_classes()
+#     ] * n_per_class
+    
+    draw_size = 200
+    resize_to = image_size
+    line_width = draw_size / 25
+    min_radius = line_width * 6
+    max_radius = min_radius * 1.5
+    images = shapes(params, draw_size, resize_to, min_radius=min_radius, max_radius=max_radius, line_width=line_width)
 
     gaussian_z = tf.random.normal([n_z_data, latent_dims])
 
-    resized_images = np.zeros([n_x_data, image_size, image_size], dtype=np.float32)
-    for i in range(len(images)):
-        img = Image.frombuffer("L", images[i].shape, images[i])
-        resized = img.resize((image_size, image_size))
-        resized_images[i] = np.array(resized).astype(np.float32) / 255.
-
-    return create_dataset_obj(resized_images, classes, gaussian_z)
+    return create_dataset_obj(images, classes, gaussian_z, n_classes)
